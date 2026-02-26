@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="tiki">
+<meta name="description" content="纯前端在线代码编辑器，零依赖，支持 HTML/CSS/JS 实时预览">
+<meta name="keywords" content="ShaBox,在线编辑器,HTML,CSS,JavaScript,实时预览,tiki">
+<meta property="og:title" content="ShaBox - by tiki">
+<meta property="og:description" content="纯前端在线代码编辑器，零依赖，支持 HTML/CSS/JS 实时预览">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶</text></svg>">
+<title>ShaBox - by tiki</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#FFF8F0;--bg2:#FFF1E0;--bg3:#FFE8CC;
+  --accent:#FF8C42;--accent-hover:#FF7A2E;
+  --text:#5D4037;--text2:#8D6E63;--text3:#A1887F;
+  --border:#F0D9C6;--radius:8px;
+  --console-log:#5D4037;--console-warn:#E65100;--console-error:#C62828;--console-info:#1565C0;
+}
+[data-theme="dark"]{
+  --bg:#1E1E1E;--bg2:#252526;--bg3:#333333;
+  --accent:#FF8C42;--accent-hover:#FF7A2E;
+  --text:#D4D4D4;--text2:#9E9E9E;--text3:#6E6E6E;
+  --border:#3E3E3E;
+  --console-log:#D4D4D4;--console-warn:#FFA726;--console-error:#EF5350;--console-info:#42A5F5;
+}
+html,body{height:100%;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+
+/* layout */
+.app{display:flex;flex-direction:column;height:100vh}
+.toolbar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.toolbar .logo{font-weight:700;font-size:15px;color:var(--accent);margin-right:auto;letter-spacing:.5px}
+.main{display:flex;flex:1;overflow:hidden}
+.editor-panel{width:50%;display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.preview-panel{width:50%;display:flex;flex-direction:column}
+
+/* tabs */
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border)}
+.tab{padding:8px 20px;font-size:13px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;transition:all .2s;user-select:none}
+.tab:hover{color:var(--text);background:var(--bg3)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+
+/* editor */
+.editor-wrap{flex:1;position:relative;overflow:hidden}
+.editor-wrap textarea{
+  position:absolute;inset:0;width:100%;height:100%;
+  background:var(--bg);color:var(--text);border:none;outline:none;resize:none;
+  font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:14px;
+  line-height:1.6;padding:12px 16px;tab-size:2;
+}
+.editor-wrap textarea::placeholder{color:var(--text3)}
+.editor-wrap textarea:focus{background:color-mix(in srgb, var(--bg) 90%, white)}
+
+/* editor clear button */
+.editor-clear{
+  position:absolute;top:8px;right:10px;z-index:3;
+  width:28px;height:28px;border-radius:6px;border:none;
+  background:var(--bg2);color:var(--text3);font-size:16px;line-height:1;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:all .2s;
+}
+.editor-wrap:hover .editor-clear{opacity:.6}
+.editor-clear:hover{opacity:1!important;background:var(--accent);color:#fff}
+
+/* buttons */
+.btn{
+  padding:6px 16px;border-radius:var(--radius);border:none;cursor:pointer;
+  font-size:13px;font-weight:600;transition:all .2s;
+}
+.btn-run{background:var(--accent);color:#fff}
+.btn-run:hover{background:var(--accent-hover);transform:translateY(-1px)}
+.btn-secondary{background:var(--bg3);color:var(--text2)}
+.btn-secondary:hover{background:var(--border);color:var(--text)}
+
+/* toggle */
+.toggle-wrap{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+
+/* template dropdown */
+.template-wrap{position:relative}
+.template-overlay{display:none}
+.template-menu{
+  display:none;position:fixed;z-index:10000;
+  min-width:200px;padding:4px 0;
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:0 4px 16px rgba(0,0,0,.1);
+}
+.template-menu.open{display:block}
+.template-item{
+  padding:8px 16px;font-size:13px;cursor:pointer;color:var(--text);transition:all .15s;
+}
+.template-item:hover{background:var(--accent);color:#fff}
+.template-item .template-desc{font-size:11px;color:var(--text3);margin-top:2px}
+.template-item:hover .template-desc{color:rgba(255,255,255,.8)}
+.toggle{
+  width:36px;height:20px;border-radius:10px;background:var(--border);
+  position:relative;cursor:pointer;transition:background .2s;
+}
+.toggle.on{background:var(--accent)}
+.toggle::after{
+  content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;
+  border-radius:50%;background:#fff;transition:transform .2s;
+}
+.toggle.on::after{transform:translateX(16px)}
+
+/* preview */
+.preview-header{display:flex;background:var(--bg2);border-bottom:1px solid var(--border)}
+.preview-tab{padding:8px 20px;font-size:13px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;transition:all .2s;user-select:none}
+.preview-tab:hover{color:var(--text);background:var(--bg3)}
+.preview-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.preview-frame{width:100%;height:100%;border:none;background:#fff}
+[data-theme="dark"] .preview-frame{background:#1e1e1e}
+.console-panel{display:none;flex:1;flex-direction:column;overflow:hidden;background:var(--bg)}
+.console-panel.visible{display:flex}
+.preview-frame-wrap{flex:1;display:none;position:relative}
+.preview-frame-wrap.visible{display:block}
+.console-list{
+  flex:1;overflow-y:auto;padding:8px 12px;font-family:'Cascadia Code','Fira Code','Consolas',monospace;font-size:13px;line-height:1.5;
+}
+.console-item{padding:4px 8px;border-bottom:1px solid var(--border);word-break:break-all;border-radius:4px;margin-bottom:2px}
+.console-item.log{color:var(--console-log)}
+.console-item.warn{color:var(--console-warn);background:#FFF3E0}
+.console-item.error{color:var(--console-error);background:#FFEBEE}
+.console-item.info{color:var(--console-info);background:#E3F2FD}
+[data-theme="dark"] .console-item.warn{background:#3E2723}
+[data-theme="dark"] .console-item.error{background:#3E1010}
+[data-theme="dark"] .console-item.info{background:#0D2137}
+.console-empty{color:var(--text3);padding:20px;text-align:center;font-size:13px}
+
+/* console table */
+.console-table{border-collapse:collapse;margin:4px 0;font-size:12px}
+.console-table th,.console-table td{border:1px solid var(--border);padding:3px 8px;text-align:left}
+.console-table th{background:var(--bg2);font-weight:600}
+
+/* object tree */
+.obj-toggle{cursor:pointer;user-select:none;color:var(--accent)}
+.obj-toggle::before{content:'▶ ';font-size:10px;display:inline-block;transition:transform .15s}
+.obj-toggle.open::before{transform:rotate(90deg)}
+.obj-children{display:none;margin-left:16px;border-left:1px solid var(--border);padding-left:8px}
+.obj-children.open{display:block}
+.obj-key{color:var(--accent)}
+.obj-string{color:#2E7D32}
+[data-theme="dark"] .obj-string{color:#6A9955}
+.obj-number{color:#1565C0}
+[data-theme="dark"] .obj-number{color:#B5CEA8}
+.obj-bool{color:#7B1FA2}
+[data-theme="dark"] .obj-bool{color:#C586C0}
+.obj-null{color:var(--text3)}
+
+/* statusbar */
+.statusbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:4px 16px;background:var(--bg2);border-top:1px solid var(--border);
+  font-size:11px;color:var(--text3);
+}
+.shortcuts{opacity:.7}
+
+/* resize handle */
+.resize-handle{
+  width:5px;cursor:col-resize;background:transparent;transition:background .2s;flex-shrink:0;
+}
+.resize-handle:hover,.resize-handle.active{background:var(--accent)}
+.drag-overlay{position:fixed;inset:0;z-index:9999;cursor:col-resize;display:none}
+
+/* fullscreen */
+.editor-panel.fullscreen,.preview-panel.fullscreen{
+  position:fixed;inset:0;width:100%!important;height:100%!important;z-index:1000;background:var(--bg);
+}
+.fullscreen-hint{
+  position:absolute;top:8px;right:12px;font-size:11px;color:var(--text3);pointer-events:none;opacity:0;transition:opacity .3s;z-index:2;
+}
+.editor-panel.fullscreen .fullscreen-hint,.preview-panel.fullscreen .fullscreen-hint{opacity:1}
+.tabs .tab .fullscreen-btn,.preview-header .fullscreen-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;margin-left:6px;cursor:pointer;
+  border-radius:4px;transition:all .2s;vertical-align:middle;
+  color:var(--text2);font-size:16px;font-weight:bold;
+}
+.tabs .tab .fullscreen-btn:hover,.preview-header .fullscreen-btn:hover{
+  background:var(--accent);color:#fff;
+}
+/* preview fullscreen: hide header, show only content */
+.preview-panel.fullscreen .preview-header{display:none}
+.preview-panel.fullscreen .fullscreen-hint{display:none}
+.preview-panel.fullscreen .preview-frame-wrap{display:block!important}
+
+/* fullscreen exit hint button (visual only, ESC to exit) */
+.fullscreen-exit{
+  display:none;position:absolute;top:0;right:0;z-index:1002;
+  padding:10px 18px;border-radius:0 0 0 12px;border:1px solid var(--border);border-top:none;border-right:none;
+  background:var(--bg2);color:var(--text2);font-size:12px;cursor:default;
+  pointer-events:none;opacity:.85;
+}
+.fullscreen .fullscreen-exit{display:block}
+
+/* toast */
+.toast{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);
+  background:var(--accent);color:#fff;padding:12px 24px;border-radius:var(--radius);
+  font-size:14px;font-weight:600;z-index:2147483647;pointer-events:none;
+  opacity:0;transition:all .4s ease;box-shadow:0 4px 16px rgba(0,0,0,.15);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* responsive */
+.mobile-panel-switch{display:none}
+.mobile-more-menu{display:none}
+@media(max-width:768px){
+  .main{flex-direction:column;position:relative;overflow:hidden}
+  .editor-panel,.preview-panel{width:100%!important;height:100%!important;position:absolute;inset:0;transition:transform .2s}
+  .editor-panel{border-right:none;z-index:2}
+  .preview-panel{z-index:1}
+  .editor-panel.mobile-hidden{transform:translateX(-100%);pointer-events:none}
+  .preview-panel.mobile-hidden{transform:translateX(100%);pointer-events:none}
+  .fullscreen-hint{display:none!important}
+  .fullscreen-exit{display:none!important}
+  .preview-frame-wrap{position:absolute!important;inset:0!important;height:auto!important;flex:none!important}
+  .preview-frame-wrap.visible{display:block}
+  .console-panel.visible{position:absolute!important;inset:0!important;height:auto!important;flex:none!important;display:flex}
+  .console-panel.visible .console-list{flex:1;overflow-y:auto}
+  .resize-handle{display:none}
+  .shortcuts{display:none}
+  .statusbar{display:none}
+  .toolbar{gap:6px;padding:6px 10px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .toolbar .logo{font-size:13px;margin-right:6px;flex-shrink:0}
+  .btn{padding:6px 10px;font-size:12px;white-space:nowrap;flex-shrink:0}
+  .toggle-wrap{display:none}
+  .toolbar .btn-hide-mobile{display:none}
+  .tab{padding:6px 12px;font-size:12px}
+  .preview-tab{padding:6px 12px;font-size:12px}
+  .editor-wrap textarea{font-size:16px;padding:8px 10px}
+  .tabs .tab[style*="margin-left"]{display:none}
+  .preview-header{display:none}
+  .mobile-panel-switch{
+    display:flex;gap:0;background:var(--bg2);border-bottom:1px solid var(--border);
+  }
+  .mobile-panel-switch .mp-btn{
+    flex:1;padding:8px;text-align:center;font-size:13px;font-weight:600;
+    cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;transition:all .2s;
+  }
+  .mobile-panel-switch .mp-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .mobile-more-menu{
+    display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;
+    background:rgba(0,0,0,.4);
+  }
+  .mobile-more-menu.open{display:flex;align-items:flex-end}
+  .mobile-more-menu .more-sheet{
+    width:100%;background:var(--bg);border-radius:16px 16px 0 0;padding:16px;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .mobile-more-menu .more-sheet .btn{width:100%;text-align:center;padding:12px;font-size:14px}
+  .mobile-more-menu .more-sheet .more-close{
+    margin-top:4px;padding:12px;text-align:center;color:var(--text3);font-size:14px;cursor:pointer;
+  }
+  .template-menu{position:fixed!important;top:auto!important;bottom:0;left:0!important;right:0;
+    margin:0!important;border-radius:16px 16px 0 0;z-index:10000;
+    max-height:60vh;overflow-y:auto;box-shadow:0 -4px 24px rgba(0,0,0,.2);
+  }
+  .template-menu.open{display:block}
+  .template-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999}
+  .template-overlay.open{display:block}
+}
+@media(max-width:480px){
+  .toolbar .logo{display:none}
+  .btn{padding:5px 8px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toast" id="toast"></div>
+  <div class="toolbar">
+    <span class="logo">&#9654; ShaBox <span style="font-weight:400;font-size:11px;color:var(--text3)">by tiki</span></span>
+    <button class="btn btn-run" onclick="runCode(true)" title="Ctrl+Enter">&#9655; 运行</button>
+    <button class="btn btn-secondary btn-hide-mobile" onclick="clearConsole()">清空控制台</button>
+    <button class="btn btn-secondary btn-hide-mobile" onclick="exportHTML()" title="Ctrl+S">导出 HTML</button>
+    <label class="btn btn-secondary btn-hide-mobile" style="position:relative">导入
+      <input type="file" accept=".html,.htm" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importHTML(event)">
+    </label>
+    <button class="btn btn-secondary" onclick="toggleTheme()" id="themeBtn">深色模式</button>
+    <button class="btn btn-secondary btn-hide-mobile" onclick="formatCode()" title="Ctrl+Shift+F">格式化</button>
+    <button class="btn btn-secondary" onclick="shareCode()">分享</button>
+    <div class="template-wrap">
+      <button class="btn btn-secondary" onclick="toggleTemplateMenu()">模板</button>
+    </div>
+    <button class="btn btn-secondary" onclick="openMobileMore()" style="display:none" id="mobileMoreBtn">更多</button>
+    <div class="toggle-wrap">
+      <span>自动运行</span>
+      <div class="toggle" id="autoToggle" onclick="toggleAuto()"></div>
+    </div>
+  </div>
+  <div class="mobile-panel-switch" id="mobilePanelSwitch">
+    <div class="mp-btn active" onclick="switchMobilePanel('editor',this)">编辑器</div>
+    <div class="mp-btn" onclick="switchMobilePanel('preview',this)">预览</div>
+    <div class="mp-btn" onclick="switchMobilePanel('console',this)">控制台</div>
+  </div>
+  <div class="main">
+    <div class="editor-panel" id="editorPanel">
+      <div class="tabs">
+        <div class="tab active" data-tab="html" onclick="switchTab('html',this)">HTML</div>
+        <div class="tab" data-tab="css" onclick="switchTab('css',this)">CSS</div>
+        <div class="tab" data-tab="js" onclick="switchTab('js',this)">JavaScript</div>
+        <div class="tab" style="margin-left:auto;border:none" onclick="toggleFullscreen('editor')" title="全屏编辑器"><span class="fullscreen-btn">&#x2922;</span></div>
+      </div>
+      <div class="fullscreen-hint">ESC 退出全屏</div>
+      <div class="fullscreen-exit">退出全屏 (ESC)</div>
+      <div class="editor-wrap">
+        <button class="editor-clear" onclick="clearCurrentEditor()" title="清空当前编辑器">&#x2715;</button>
+        <textarea id="htmlEditor" placeholder="输入 HTML 代码..." spellcheck="false">&lt;h1&gt;Hello Sandbox&lt;/h1&gt;
+&lt;p&gt;在这里编写你的代码&lt;/p&gt;</textarea>
+        <textarea id="cssEditor" style="display:none" placeholder="输入 CSS 代码..." spellcheck="false">h1 { color: #FF8C42; }
+p { color: #5D4037; font-size: 18px; }</textarea>
+        <textarea id="jsEditor" style="display:none" placeholder="输入 JavaScript 代码..." spellcheck="false">console.log("Hello from sandbox!");
+console.warn("这是一条警告");
+console.error("这是一条错误");
+console.info("这是一条信息");
+console.table([{name:"Alice",age:25},{name:"Bob",age:30}]);</textarea>
+      </div>
+    </div>
+    <div class="resize-handle" id="resizeHandle"></div>
+    <div class="drag-overlay" id="dragOverlay"></div>
+    <div class="preview-panel" id="previewPanel">
+      <div class="preview-header">
+        <div class="preview-tab active" data-ptab="preview" onclick="switchPreview('preview',this)">预览</div>
+        <div class="preview-tab" data-ptab="console" onclick="switchPreview('console',this)">控制台<span id="consoleBadge" style="display:none;margin-left:4px;background:var(--accent);color:#fff;border-radius:10px;padding:0 6px;font-size:11px"></span></div>
+        <div class="preview-tab" style="margin-left:auto;border:none" onclick="toggleFullscreen('preview')" title="全屏预览"><span class="fullscreen-btn">&#x2922;</span></div>
+      </div>
+      <div class="fullscreen-hint">ESC 退出全屏</div>
+      <div class="fullscreen-exit">退出全屏 (ESC)</div>
+      <div class="preview-frame-wrap visible" id="previewWrap">
+        <iframe class="preview-frame" id="previewFrame" sandbox="allow-scripts" style="position:absolute;inset:0;width:100%;height:100%;border:none"></iframe>
+      </div>
+      <div class="console-panel" id="consolePanel">
+        <div class="console-list" id="consoleList">
+          <div class="console-empty">控制台输出将显示在这里</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="statusbar">
+    <span id="status">就绪</span>
+    <span class="shortcuts">Ctrl+Enter 运行 · Ctrl+S 导出 · Ctrl+L 清空 · Ctrl+Shift+F 格式化 · ESC 退出全屏</span>
+    <span>Made by tiki · 纯前端沙箱 · 零依赖</span>
+  </div>
+</div>
+<div class="mobile-more-menu" id="mobileMoreMenu" onclick="closeMobileMore()">
+  <div class="more-sheet" onclick="event.stopPropagation()">
+    <button class="btn btn-secondary" onclick="clearConsole();closeMobileMore()">清空控制台</button>
+    <button class="btn btn-secondary" onclick="exportHTML();closeMobileMore()">导出 HTML</button>
+    <label class="btn btn-secondary" style="position:relative">导入
+      <input type="file" accept=".html,.htm" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importHTML(event);closeMobileMore()">
+    </label>
+    <button class="btn btn-secondary" onclick="formatCode();closeMobileMore()">格式化</button>
+    <button class="btn btn-secondary" onclick="toggleAuto();updateMobileAutoBtn();closeMobileMore()" id="mobileAutoBtn">自动运行：关</button>
+    <div class="more-close" onclick="closeMobileMore()">取消</div>
+  </div>
+</div>
+<div class="template-overlay" id="templateOverlay" onclick="closeTemplateMenu()"></div>
+<div class="template-menu" id="templateMenu"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const htmlEditor = $('htmlEditor');
+const cssEditor = $('cssEditor');
+const jsEditor = $('jsEditor');
+const previewFrame = $('previewFrame');
+const consoleList = $('consoleList');
+const consoleBadge = $('consoleBadge');
+const statusEl = $('status');
+const autoToggle = $('autoToggle');
+const themeBtn = $('themeBtn');
+
+let autoRun = false;
+let debounceTimer = null;
+let consoleCount = 0;
+const STORAGE_KEY = 'codeSandbox_v1';
+const MAX_CONSOLE_ITEMS = 500;
+
+// Console interception script injected into srcdoc iframe
+const consoleScript =
+  '<script>' +
+  '(function(){' +
+  '  var _post = function(level, args) {' +
+  '    parent.postMessage({type:"__console__", level:level, args:args.map(function(a){' +
+  '      try { return typeof a === "object" && a !== null ? JSON.parse(JSON.stringify(a)) : a; }' +
+  '      catch(e) { return String(a); }' +
+  '    })}, "*");' +
+  '  };' +
+  '  ["log","warn","error","info"].forEach(function(m){' +
+  '    var orig = console[m];' +
+  '    console[m] = function(){' +
+  '      var args = Array.prototype.slice.call(arguments);' +
+  '      _post(m, args);' +
+  '      orig.apply(console, args);' +
+  '    };' +
+  '  });' +
+  '  var origTable = console.table;' +
+  '  console.table = function(data){' +
+  '    _post("table", [data]);' +
+  '    if(origTable) origTable.apply(console, arguments);' +
+  '  };' +
+  '  var origClear = console.clear;' +
+  '  console.clear = function(){' +
+  '    _post("clear", []);' +
+  '    if(origClear) origClear.apply(console);' +
+  '  };' +
+  '  window.onerror = function(msg,src,line){' +
+  '    _post("error", [msg + (line ? " (line " + line + ")" : "")]);' +
+  '  };' +
+  '  window.addEventListener("unhandledrejection", function(e){' +
+  '    _post("error", ["Unhandled Promise: " + (e.reason && e.reason.message || e.reason || "unknown")]);' +
+  '  });' +
+  '  document.addEventListener("keydown", function(e){' +
+  '    if(e.key === "Escape") parent.postMessage({type:"__exit_fullscreen__"}, "*");' +
+  '  });' +
+  '})();' +
+  '<\/script>';
+
+function buildSrcdoc(html, css, js) {
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+    consoleScript +
+    '<style>' + css.replace(/<\/style>/gi, '<\\/style>') + '</style>' +
+    '</head><body>' + html +
+    '<script>' + js.replace(/<\/script>/gi, '<\\/script>') + '<\/script>' +
+    '</body></html>';
+}
+
+// ── localStorage persistence ──
+let saveTimer = null;
+function saveToStorage() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(_saveToStorage, 300);
+}
+function saveToStorageNow() { clearTimeout(saveTimer); _saveToStorage(); }
+function _saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      html: htmlEditor.value,
+      css: cssEditor.value,
+      js: jsEditor.value,
+      theme: document.documentElement.getAttribute('data-theme') || 'light',
+      autoRun
+    }));
+  } catch {}
+}
+
+function loadFromStorage() {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!data) return;
+    if (data.html != null) htmlEditor.value = data.html;
+    if (data.css != null) cssEditor.value = data.css;
+    if (data.js != null) jsEditor.value = data.js;
+    if (data.theme === 'dark') applyTheme('dark');
+    if (data.autoRun) { autoRun = true; autoToggle.classList.add('on'); }
+  } catch {}
+}
+
+// ── Theme ──
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  themeBtn.textContent = theme === 'dark' ? '浅色模式' : '深色模式';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+  saveToStorage();
+}
+
+// ── Tab switching ──
+function switchTab(tab, el) {
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  htmlEditor.style.display = tab === 'html' ? '' : 'none';
+  cssEditor.style.display = tab === 'css' ? '' : 'none';
+  jsEditor.style.display = tab === 'js' ? '' : 'none';
+}
+
+// ── Clear current editor ──
+function clearCurrentEditor() {
+  const activeTab = document.querySelector('.tabs .tab.active');
+  const tab = activeTab ? activeTab.getAttribute('data-tab') : 'html';
+  if (tab === 'html') htmlEditor.value = '';
+  else if (tab === 'css') cssEditor.value = '';
+  else if (tab === 'js') jsEditor.value = '';
+  saveToStorage();
+  runCode(true);
+}
+
+// ── Preview/Console switching ──
+function switchPreview(view, el) {
+  document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  $('previewWrap').classList.toggle('visible', view === 'preview');
+  $('consolePanel').classList.toggle('visible', view === 'console');
+}
+
+// ── Editor key handling ──
+let inputRafId = null;
+[htmlEditor, cssEditor, jsEditor].forEach(editor => {
+  editor.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = editor.selectionStart, end = editor.selectionEnd;
+      editor.value = editor.value.substring(0, s) + '  ' + editor.value.substring(end);
+      editor.selectionStart = editor.selectionEnd = s + 2;
+    }
+  });
+  editor.addEventListener('input', () => {
+    if (inputRafId) return;
+    inputRafId = requestAnimationFrame(() => {
+      inputRafId = null;
+      saveToStorage();
+      if (autoRun) {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(runCode, 800);
+      }
+    });
+  });
+});
+
+// ── Object tree rendering ──
+const MAX_OBJ_DEPTH = 5;
+
+function renderValue(val, depth) {
+  depth = depth || 0;
+  if (val === null) return '<span class="obj-null">null</span>';
+  if (val === undefined) return '<span class="obj-null">undefined</span>';
+  if (typeof val === 'string') return '<span class="obj-string">"' + escapeHtml(val) + '"</span>';
+  if (typeof val === 'number') return '<span class="obj-number">' + val + '</span>';
+  if (typeof val === 'boolean') return '<span class="obj-bool">' + val + '</span>';
+  if (depth >= MAX_OBJ_DEPTH) return '<span class="obj-null">' + escapeHtml(Array.isArray(val) ? '[...]' : '{...}') + '</span>';
+  if (Array.isArray(val)) return renderObject(val, true, depth);
+  if (typeof val === 'object') return renderObject(val, false, depth);
+  return escapeHtml(String(val));
+}
+
+function renderObject(obj, isArray, depth) {
+  const keys = Object.keys(obj);
+  const preview = isArray ? `Array(${keys.length})` : `Object {${keys.slice(0, 3).join(', ')}${keys.length > 3 ? ', ...' : ''}}`;
+  let html = '<span class="obj-toggle" onclick="this.classList.toggle(\'open\');this.nextElementSibling.classList.toggle(\'open\')">' + escapeHtml(preview) + '</span>';
+  html += '<div class="obj-children">';
+  for (const k of keys) {
+    html += '<div><span class="obj-key">' + escapeHtml(k) + '</span>: ' + renderValue(obj[k], depth + 1) + '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Console table rendering ──
+function renderTable(data) {
+  if (!Array.isArray(data) || data.length === 0) return null;
+  const allKeys = new Set();
+  data.forEach(row => { if (row && typeof row === 'object') Object.keys(row).forEach(k => allKeys.add(k)); });
+  if (allKeys.size === 0) return null;
+  const keys = [...allKeys];
+  let html = '<table class="console-table"><thead><tr><th>(index)</th>';
+  keys.forEach(k => { html += '<th>' + escapeHtml(k) + '</th>'; });
+  html += '</tr></thead><tbody>';
+  data.forEach((row, i) => {
+    html += '<tr><td>' + i + '</td>';
+    keys.forEach(k => { html += '<td>' + escapeHtml(row && row[k] != null ? String(row[k]) : '') + '</td>'; });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+// ── Console message handler ──
+let consoleBatch = [];
+let consoleRafId = null;
+
+function flushConsoleBatch() {
+  consoleRafId = null;
+  if (!consoleBatch.length) return;
+  if (consoleList.querySelector('.console-empty')) consoleList.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const item of consoleBatch) frag.appendChild(item);
+  consoleList.appendChild(frag);
+  // Trim oldest entries
+  while (consoleList.children.length > MAX_CONSOLE_ITEMS) {
+    consoleList.removeChild(consoleList.firstChild);
+  }
+  consoleList.scrollTop = consoleList.scrollHeight;
+  consoleBadge.textContent = consoleCount;
+  consoleBadge.style.display = '';
+  consoleBatch = [];
+}
+
+window.addEventListener('message', e => {
+  if (!e.data) return;
+  // srcdoc iframe origin is the string "null"
+  if (e.origin !== 'null') return;
+  if (e.data.type === '__exit_fullscreen__') { exitFullscreen(); return; }
+  if (e.data.type !== '__console__') return;
+  if (e.data.level === 'clear') { clearConsole(); return; }
+  if (e.data.level === 'table') { addConsoleTable(e.data.args); return; }
+  addConsoleItem(e.data.level, e.data.args);
+});
+
+function addConsoleItem(level, args) {
+  const div = document.createElement('div');
+  div.className = 'console-item ' + level;
+  const parts = args.map(a => {
+    if (a !== null && typeof a === 'object') return renderValue(a);
+    return escapeHtml(String(a));
+  });
+  div.innerHTML = parts.join(' ');
+  consoleCount++;
+  consoleBatch.push(div);
+  if (!consoleRafId) consoleRafId = requestAnimationFrame(flushConsoleBatch);
+}
+
+function addConsoleTable(args) {
+  const div = document.createElement('div');
+  div.className = 'console-item log';
+  const tableHtml = renderTable(args[0]);
+  div.innerHTML = tableHtml || escapeHtml(JSON.stringify(args[0]));
+  consoleCount++;
+  consoleBatch.push(div);
+  if (!consoleRafId) consoleRafId = requestAnimationFrame(flushConsoleBatch);
+}
+
+function clearConsole() {
+  consoleBatch = [];
+  if (consoleRafId) { cancelAnimationFrame(consoleRafId); consoleRafId = null; }
+  if (consoleCount === 0) return;
+  consoleList.innerHTML = '<div class="console-empty">控制台输出将显示在这里</div>';
+  consoleCount = 0;
+  consoleBadge.style.display = 'none';
+}
+
+// ── Run code ──
+let lastRunHash = '';
+function runCode(force) {
+  const html = htmlEditor.value;
+  const css = cssEditor.value;
+  const js = jsEditor.value;
+  // Skip if code hasn't changed (unless forced)
+  const hash = html.length + '|' + css.length + '|' + js.length + '|' + html.slice(0, 64) + css.slice(0, 64) + js.slice(0, 64);
+  if (!force && hash === lastRunHash) return;
+  lastRunHash = hash;
+
+  clearConsole();
+  statusEl.textContent = '运行中...';
+  saveToStorageNow();
+
+  previewFrame.srcdoc = buildSrcdoc(html, css, js);
+
+  setTimeout(() => { statusEl.textContent = '运行完成'; }, 300);
+}
+
+// ── Auto-run toggle ──
+function toggleAuto() {
+  autoRun = !autoRun;
+  autoToggle.classList.toggle('on', autoRun);
+  saveToStorage();
+}
+
+// ── Export HTML ──
+function exportHTML() {
+  const content = `<!-- Created with ShaBox by tiki -->\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<style>\n${cssEditor.value}\n</style>\n</head>\n<body>\n${htmlEditor.value}\n<script>\n${jsEditor.value}\n<\/script>\n</body>\n</html>`;
+  const blob = new Blob([content], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sandbox-export.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  statusEl.textContent = '已导出';
+}
+
+// ── Import HTML ──
+function importHTML(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const text = ev.target.result;
+    // Parse imported HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+
+    // Extract CSS from all <style> tags
+    const styles = [...doc.querySelectorAll('style')].map(s => s.textContent).join('\n');
+    // Extract JS from all <script> tags
+    const scripts = [...doc.querySelectorAll('script')].map(s => s.textContent).join('\n');
+    // Remove style and script from body to get HTML
+    doc.querySelectorAll('style, script').forEach(el => el.remove());
+    const bodyHtml = doc.body ? doc.body.innerHTML.trim() : '';
+
+    htmlEditor.value = bodyHtml;
+    cssEditor.value = styles;
+    jsEditor.value = scripts;
+    saveToStorage();
+    statusEl.textContent = '已导入: ' + file.name;
+    runCode(true);
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); runCode(true); }
+  if (e.ctrlKey && e.key === 's') { e.preventDefault(); exportHTML(); }
+  if (e.ctrlKey && e.key === 'l') { e.preventDefault(); clearConsole(); }
+  if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) { e.preventDefault(); formatCode(); }
+  if (e.key === 'Escape') exitFullscreen();
+});
+
+// ── Fullscreen ──
+let fullscreenTarget = null;
+
+function toggleFullscreen(panel) {
+  const el = panel === 'editor' ? editorPanel : $('previewPanel');
+  if (el.classList.contains('fullscreen')) {
+    exitFullscreen();
+  } else {
+    exitFullscreen();
+    el.classList.add('fullscreen');
+    fullscreenTarget = el;
+  }
+}
+
+function exitFullscreen() {
+  if (fullscreenTarget) {
+    fullscreenTarget.classList.remove('fullscreen');
+    fullscreenTarget = null;
+  }
+}
+
+// Double-click tabs header to toggle fullscreen
+document.querySelector('.tabs').addEventListener('dblclick', () => toggleFullscreen('editor'));
+document.querySelector('.preview-header').addEventListener('dblclick', () => toggleFullscreen('preview'));
+
+// ── Code Formatter ──
+function formatCode() {
+  const activeTab = document.querySelector('.tabs .tab.active');
+  const tab = activeTab ? activeTab.getAttribute('data-tab') : 'html';
+  statusEl.textContent = '格式化中...';
+  // Defer to let UI update before potentially heavy formatting
+  setTimeout(() => {
+    if (tab === 'html') htmlEditor.value = formatHTML(htmlEditor.value);
+    else if (tab === 'css') cssEditor.value = formatCSS(cssEditor.value);
+    else if (tab === 'js') jsEditor.value = formatJS(jsEditor.value);
+    saveToStorage();
+    statusEl.textContent = '已格式化';
+  }, 10);
+}
+
+function formatHTML(code) {
+  const selfClosing = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+  let result = '', indent = 0;
+  // Normalize whitespace between tags
+  code = code.replace(/>\s+</g, '>\n<').trim();
+  const tokens = code.split(/(<[^>]+>)/g).filter(Boolean);
+  for (const token of tokens) {
+    const trimmed = token.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('</')) {
+      indent = Math.max(0, indent - 1);
+      result += '  '.repeat(indent) + trimmed + '\n';
+    } else if (trimmed.startsWith('<')) {
+      result += '  '.repeat(indent) + trimmed + '\n';
+      const tagMatch = trimmed.match(/^<(\w+)/);
+      if (tagMatch && !selfClosing.has(tagMatch[1].toLowerCase()) && !trimmed.endsWith('/>') && !trimmed.startsWith('<!')) {
+        indent++;
+      }
+    } else {
+      // Text content
+      const lines = trimmed.split('\n');
+      for (const line of lines) {
+        const l = line.trim();
+        if (l) result += '  '.repeat(indent) + l + '\n';
+      }
+    }
+  }
+  return result.trimEnd();
+}
+
+function formatCSS(code) {
+  let result = '', indent = 0;
+  // Normalize
+  code = code.replace(/\s*\{\s*/g, ' {\n').replace(/\s*\}\s*/g, '\n}\n').replace(/;\s*/g, ';\n').trim();
+  const lines = code.split('\n');
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    if (line === '}') {
+      indent = Math.max(0, indent - 1);
+      result += '  '.repeat(indent) + line + '\n\n';
+    } else if (line.endsWith('{')) {
+      result += '  '.repeat(indent) + line + '\n';
+      indent++;
+    } else {
+      result += '  '.repeat(indent) + line + '\n';
+    }
+  }
+  return result.replace(/\n{3,}/g, '\n\n').trimEnd();
+}
+
+function formatJS(code) {
+  let result = '', indent = 0;
+  // Tokenize carefully to avoid breaking strings
+  const lines = code.split('\n');
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) { result += '\n'; continue; }
+
+    // Decrease indent for closing brackets
+    const firstChar = line[0];
+    if (firstChar === '}' || firstChar === ']' || firstChar === ')') {
+      indent = Math.max(0, indent - 1);
+    }
+
+    result += '  '.repeat(indent) + line + '\n';
+
+    // Count bracket changes (outside strings)
+    let opens = 0, closes = 0, inStr = false, strCh = '';
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inStr) {
+        if (c === strCh && line[i - 1] !== '\\') inStr = false;
+      } else {
+        if (c === '"' || c === "'" || c === '`') { inStr = true; strCh = c; }
+        else if (c === '{' || c === '[' || c === '(') opens++;
+        else if (c === '}' || c === ']' || c === ')') closes++;
+        else if (c === '/' && line[i + 1] === '/') break; // line comment
+      }
+    }
+    indent += opens - closes;
+    // Re-check: if line started with closer, we already decremented
+    if ((firstChar === '}' || firstChar === ']' || firstChar === ')') && opens > closes) {
+      // already handled
+    }
+    if (indent < 0) indent = 0;
+  }
+  return result.replace(/\n{3,}/g, '\n\n').trimEnd();
+}
+
+// ── Resize handle ──
+const resizeHandle = $('resizeHandle');
+const dragOverlay = $('dragOverlay');
+const editorPanel = $('editorPanel');
+const previewPanel = $('previewPanel');
+const mainContainer = document.querySelector('.main');
+let isResizing = false;
+
+resizeHandle.addEventListener('mousedown', e => {
+  isResizing = true;
+  resizeHandle.classList.add('active');
+  dragOverlay.style.display = 'block';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!isResizing) return;
+  const rect = mainContainer.getBoundingClientRect();
+  const pct = ((e.clientX - rect.left) / rect.width) * 100;
+  const clamped = Math.min(80, Math.max(20, pct));
+  editorPanel.style.width = clamped + '%';
+  previewPanel.style.width = (100 - clamped) + '%';
+});
+
+document.addEventListener('mouseup', () => {
+  if (isResizing) {
+    isResizing = false;
+    resizeHandle.classList.remove('active');
+    dragOverlay.style.display = 'none';
+  }
+});
+
+// ── Mobile panel switch ──
+const isMobile = () => window.innerWidth <= 768;
+
+function switchMobilePanel(panel, el) {
+  document.querySelectorAll('.mp-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const ep = $('editorPanel');
+  const pp = $('previewPanel');
+  const cp = $('consolePanel');
+  const pw = $('previewWrap');
+  if (panel === 'editor') {
+    ep.classList.remove('mobile-hidden');
+    pp.classList.add('mobile-hidden');
+  } else if (panel === 'preview') {
+    ep.classList.add('mobile-hidden');
+    pp.classList.remove('mobile-hidden');
+    pw.classList.add('visible');
+    cp.classList.remove('visible');
+    runCode(true);
+  } else if (panel === 'console') {
+    ep.classList.add('mobile-hidden');
+    pp.classList.remove('mobile-hidden');
+    pw.classList.remove('visible');
+    cp.classList.add('visible');
+  }
+}
+
+function openMobileMore() { updateMobileAutoBtn(); $('mobileMoreMenu').classList.add('open'); }
+function closeMobileMore() { $('mobileMoreMenu').classList.remove('open'); }
+function updateMobileAutoBtn() {
+  const btn = $('mobileAutoBtn');
+  if (btn) btn.textContent = '自动运行：' + (autoRun ? '开' : '关');
+}
+
+// Show/hide mobile more button on resize
+function updateMobileUI() {
+  $('mobileMoreBtn').style.display = isMobile() ? '' : 'none';
+}
+updateMobileUI();
+window.addEventListener('resize', updateMobileUI);
+
+// ── Init ──
+loadFromStorage();
+loadFromHash();
+runCode(true);
+
+// ── Toast ──
+function showToast(msg, duration) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration || 2500);
+}
+
+// ── Share / Load from URL hash ──
+function shareCode() {
+  try {
+    const data = JSON.stringify({ html: htmlEditor.value, css: cssEditor.value, js: jsEditor.value });
+    const encoded = btoa(unescape(encodeURIComponent(data)));
+    const url = location.origin + location.pathname + '#code=' + encoded;
+    if (url.length > 65000) {
+      showToast('代码过长，无法生成分享链接');
+      return;
+    }
+    history.replaceState(null, '', '#code=' + encoded);
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('分享链接已复制到剪贴板，发给别人即可打开');
+    }, () => {
+      prompt('复制此链接分享：', url);
+      showToast('分享链接已生成');
+    });
+  } catch (e) {
+    showToast('生成分享链接失败');
+  }
+}
+
+function loadFromHash() {
+  try {
+    const hash = location.hash;
+    if (!hash.startsWith('#code=')) return;
+    const encoded = hash.slice(6);
+    const data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    if (data.html != null) htmlEditor.value = data.html;
+    if (data.css != null) cssEditor.value = data.css;
+    if (data.js != null) jsEditor.value = data.js;
+    saveToStorage();
+    statusEl.textContent = '已从分享链接加载代码';
+  } catch (e) {}
+}
+
+// ── Templates ──
+const TEMPLATES = [
+  {
+    name: '空白',
+    desc: '从零开始',
+    html: '',
+    css: '',
+    js: ''
+  },
+  {
+    name: 'Hello World',
+    desc: '基础 HTML 示例',
+    html: '<h1>Hello World</h1>\n<p>欢迎使用ShaBox</p>',
+    css: 'body {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  font-family: sans-serif;\n  background: #FFF8F0;\n}\n\nh1 {\n  color: #FF8C42;\n  font-size: 48px;\n}\n\np {\n  color: #5D4037;\n  font-size: 20px;\n}',
+    js: 'console.log("Hello World!");'
+  },
+  {
+    name: 'CSS 动画',
+    desc: '旋转弹跳动画效果',
+    html: '<div class="scene">\n  <div class="box"></div>\n  <div class="shadow"></div>\n</div>',
+    css: 'body {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  background: linear-gradient(135deg, #667eea, #764ba2);\n  overflow: hidden;\n}\n\n.scene {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n}\n\n.box {\n  width: 80px;\n  height: 80px;\n  background: linear-gradient(45deg, #FF8C42, #FFD54F);\n  border-radius: 16px;\n  animation: bounce 1.5s ease-in-out infinite, spin 3s linear infinite;\n}\n\n.shadow {\n  width: 80px;\n  height: 10px;\n  background: rgba(0,0,0,.2);\n  border-radius: 50%;\n  margin-top: 20px;\n  animation: shadow 1.5s ease-in-out infinite;\n}\n\n@keyframes bounce {\n  0%, 100% { transform: translateY(0); }\n  50% { transform: translateY(-120px); }\n}\n\n@keyframes spin {\n  to { transform: rotate(360deg); }\n}\n\n@keyframes shadow {\n  0%, 100% { transform: scaleX(1); opacity: .3; }\n  50% { transform: scaleX(.5); opacity: .1; }\n}',
+    js: 'console.log("CSS 动画示例");'
+  },
+  {
+    name: 'Canvas 绘图',
+    desc: '彩色粒子动画',
+    html: '<canvas id="c"></canvas>',
+    css: 'body { margin: 0; overflow: hidden; background: #111; }\ncanvas { display: block; }',
+    js: 'const canvas = document.getElementById("c");\nconst ctx = canvas.getContext("2d");\ncanvas.width = innerWidth;\ncanvas.height = innerHeight;\n\nconst particles = [];\nconst colors = ["#FF8C42","#FFD54F","#FF5252","#448AFF","#69F0AE"];\n\nfor (let i = 0; i < 100; i++) {\n  particles.push({\n    x: Math.random() * canvas.width,\n    y: Math.random() * canvas.height,\n    r: Math.random() * 4 + 1,\n    dx: (Math.random() - 0.5) * 2,\n    dy: (Math.random() - 0.5) * 2,\n    color: colors[Math.floor(Math.random() * colors.length)]\n  });\n}\n\nfunction draw() {\n  ctx.fillStyle = "rgba(17,17,17,0.1)";\n  ctx.fillRect(0, 0, canvas.width, canvas.height);\n  particles.forEach(p => {\n    ctx.beginPath();\n    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);\n    ctx.fillStyle = p.color;\n    ctx.fill();\n    p.x += p.dx;\n    p.y += p.dy;\n    if (p.x < 0 || p.x > canvas.width) p.dx *= -1;\n    if (p.y < 0 || p.y > canvas.height) p.dy *= -1;\n  });\n  requestAnimationFrame(draw);\n}\ndraw();\nconsole.log("粒子数量:", particles.length);'
+  },
+  {
+    name: '表单验证',
+    desc: '带验证的登录表单',
+    html: '<div class="card">\n  <h2>登录</h2>\n  <form id="form" onsubmit="return false">\n    <div class="field">\n      <label>邮箱</label>\n      <input type="email" id="email" placeholder="请输入邮箱">\n      <span class="error" id="emailErr"></span>\n    </div>\n    <div class="field">\n      <label>密码</label>\n      <input type="password" id="pwd" placeholder="请输入密码">\n      <span class="error" id="pwdErr"></span>\n    </div>\n    <button type="submit" id="submitBtn">登录</button>\n  </form>\n</div>',
+    css: 'body {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  background: #f5f5f5;\n  font-family: sans-serif;\n}\n\n.card {\n  background: #fff;\n  padding: 40px;\n  border-radius: 12px;\n  box-shadow: 0 4px 24px rgba(0,0,0,.08);\n  width: 340px;\n}\n\nh2 {\n  text-align: center;\n  color: #333;\n  margin-bottom: 24px;\n}\n\n.field {\n  margin-bottom: 16px;\n}\n\nlabel {\n  display: block;\n  font-size: 14px;\n  color: #666;\n  margin-bottom: 6px;\n}\n\ninput {\n  width: 100%;\n  padding: 10px 12px;\n  border: 1px solid #ddd;\n  border-radius: 8px;\n  font-size: 14px;\n  outline: none;\n  transition: border-color .2s;\n  box-sizing: border-box;\n}\n\ninput:focus {\n  border-color: #FF8C42;\n}\n\n.error {\n  color: #e53935;\n  font-size: 12px;\n  min-height: 18px;\n  display: block;\n}\n\nbutton {\n  width: 100%;\n  padding: 12px;\n  background: #FF8C42;\n  color: #fff;\n  border: none;\n  border-radius: 8px;\n  font-size: 16px;\n  font-weight: 600;\n  cursor: pointer;\n  transition: background .2s;\n}\n\nbutton:hover {\n  background: #FF7A2E;\n}',
+    js: 'const form = document.getElementById("form");\nconst email = document.getElementById("email");\nconst pwd = document.getElementById("pwd");\n\nform.addEventListener("submit", () => {\n  let valid = true;\n  const emailErr = document.getElementById("emailErr");\n  const pwdErr = document.getElementById("pwdErr");\n  emailErr.textContent = "";\n  pwdErr.textContent = "";\n\n  if (!email.value.includes("@")) {\n    emailErr.textContent = "请输入有效的邮箱地址";\n    valid = false;\n  }\n  if (pwd.value.length < 6) {\n    pwdErr.textContent = "密码至少 6 位";\n    valid = false;\n  }\n  if (valid) {\n    console.log("登录成功!", { email: email.value });\n  } else {\n    console.warn("表单验证失败");\n  }\n});'
+  },
+  {
+    name: '时钟',
+    desc: 'CSS + JS 模拟时钟',
+    html: '<div class="clock">\n  <div class="hand hour" id="hour"></div>\n  <div class="hand minute" id="minute"></div>\n  <div class="hand second" id="second"></div>\n  <div class="center"></div>\n</div>\n<p id="digital"></p>',
+    css: 'body {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  min-height: 100vh;\n  background: #1a1a2e;\n  color: #eee;\n  font-family: monospace;\n}\n\n.clock {\n  width: 200px;\n  height: 200px;\n  border: 4px solid #FF8C42;\n  border-radius: 50%;\n  position: relative;\n}\n\n.hand {\n  position: absolute;\n  bottom: 50%;\n  left: 50%;\n  transform-origin: bottom center;\n  border-radius: 4px;\n}\n\n.hour {\n  width: 4px;\n  height: 50px;\n  margin-left: -2px;\n  background: #FFD54F;\n}\n\n.minute {\n  width: 3px;\n  height: 70px;\n  margin-left: -1.5px;\n  background: #eee;\n}\n\n.second {\n  width: 1px;\n  height: 80px;\n  margin-left: -.5px;\n  background: #FF5252;\n}\n\n.center {\n  width: 10px;\n  height: 10px;\n  background: #FF8C42;\n  border-radius: 50%;\n  position: absolute;\n  top: 50%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n}\n\n#digital {\n  font-size: 28px;\n  margin-top: 24px;\n  color: #FF8C42;\n}',
+    js: 'function tick() {\n  const now = new Date();\n  const h = now.getHours() % 12;\n  const m = now.getMinutes();\n  const s = now.getSeconds();\n\n  document.getElementById("hour").style.transform =\n    `rotate(${h * 30 + m * 0.5}deg)`;\n  document.getElementById("minute").style.transform =\n    `rotate(${m * 6}deg)`;\n  document.getElementById("second").style.transform =\n    `rotate(${s * 6}deg)`;\n\n  document.getElementById("digital").textContent =\n    [h, m, s].map(v => String(v).padStart(2, "0")).join(":");\n}\ntick();\nsetInterval(tick, 1000);\nconsole.log("时钟已启动");'
+  },
+  {
+    name: 'Flexbox 布局',
+    desc: '响应式卡片布局',
+    html: '<div class="container">\n  <div class="card">卡片 1</div>\n  <div class="card">卡片 2</div>\n  <div class="card">卡片 3</div>\n  <div class="card">卡片 4</div>\n  <div class="card">卡片 5</div>\n  <div class="card">卡片 6</div>\n</div>',
+    css: 'body {\n  margin: 0;\n  padding: 20px;\n  background: #f0f0f0;\n  font-family: sans-serif;\n}\n\n.container {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 16px;\n  max-width: 800px;\n  margin: 0 auto;\n}\n\n.card {\n  flex: 1 1 200px;\n  background: #fff;\n  padding: 32px;\n  border-radius: 12px;\n  box-shadow: 0 2px 12px rgba(0,0,0,.06);\n  text-align: center;\n  font-size: 18px;\n  color: #333;\n  transition: transform .2s, box-shadow .2s;\n  cursor: pointer;\n}\n\n.card:hover {\n  transform: translateY(-4px);\n  box-shadow: 0 8px 24px rgba(255,140,66,.2);\n  color: #FF8C42;\n}',
+    js: 'document.querySelectorAll(".card").forEach((card, i) => {\n  card.addEventListener("click", () => {\n    console.log(`点击了卡片 ${i + 1}`);\n  });\n});\nconsole.log("Flexbox 布局示例");'
+  }
+];
+
+function initTemplates() {
+  const menu = $('templateMenu');
+  menu.innerHTML = TEMPLATES.map((t, i) =>
+    `<div class="template-item" onclick="loadTemplate(${i})">${escapeHtml(t.name)}<div class="template-desc">${escapeHtml(t.desc)}</div></div>`
+  ).join('');
+}
+
+function toggleTemplateMenu() {
+  const menu = $('templateMenu');
+  const overlay = $('templateOverlay');
+  const isOpen = menu.classList.contains('open');
+  if (isOpen) {
+    closeTemplateMenu();
+  } else {
+    // Position menu: on desktop, below the button; on mobile, bottom sheet
+    if (!isMobile()) {
+      const btn = document.querySelector('.template-wrap');
+      const rect = btn.getBoundingClientRect();
+      menu.style.top = rect.bottom + 4 + 'px';
+      menu.style.left = rect.left + 'px';
+      menu.style.bottom = '';
+      menu.style.right = '';
+      menu.style.borderRadius = 'var(--radius)';
+    }
+    menu.classList.add('open');
+    overlay.classList.add('open');
+  }
+}
+
+function closeTemplateMenu() {
+  $('templateMenu').classList.remove('open');
+  $('templateOverlay').classList.remove('open');
+}
+
+function loadTemplate(index) {
+  const t = TEMPLATES[index];
+  htmlEditor.value = t.html;
+  cssEditor.value = t.css;
+  jsEditor.value = t.js;
+  closeTemplateMenu();
+  saveToStorage();
+  statusEl.textContent = '已加载模板: ' + t.name;
+  runCode(true);
+}
+
+// Close template menu on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.template-wrap') && !e.target.closest('.template-menu')) {
+    closeTemplateMenu();
+  }
+});
+
+initTemplates();
+</script>
+</body>
+</html>
