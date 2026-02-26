@@ -412,6 +412,11 @@ const consoleScript =
   '  window.addEventListener("unhandledrejection", function(e){' +
   '    _post("error", ["Unhandled Promise: " + (e.reason && e.reason.message || e.reason || "unknown")]);' +
   '  });' +
+  '  document.addEventListener("click", function(e){' +
+  '    var a = e.target.closest ? e.target.closest("a") : null;' +
+  '    if(a && a.href) { e.preventDefault(); }' +
+  '  }, true);' +
+  '  document.addEventListener("submit", function(e){ e.preventDefault(); }, true);' +
   '  document.addEventListener("keydown", function(e){' +
   '    if(e.key === "Escape") parent.postMessage({type:"__exit_fullscreen__"}, "*");' +
   '  });' +
